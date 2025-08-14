@@ -5,8 +5,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from extension import db
 
-from user.user_route import auth_bp
-
 cors = CORS()
 
 

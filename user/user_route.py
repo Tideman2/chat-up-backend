@@ -1,8 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
+from datetime import datetime, timedelta
 from marshmallow import ValidationError
 from extension import db
 from modules.schemas.users_schema import LoginSchema, SignUpSchema
 from user.user_model import User
+from utils.jwt import generate_jwt_token
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -10,9 +12,9 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/register', methods=["POST"])
 def register_user():
     try:
-        schema = LoginSchema()
+        schema = SignUpSchema()
         data = schema.load(request.get_json())
-        username = data.get("username")
+        username = data.get("name")
         email = data.get("email")
         password = data.get("password")
 
@@ -25,9 +27,19 @@ def register_user():
         user = User(username=username)
         user.set_password(password)
 
+        token_payload = {
+            "sub": str(user.id),
+            "username": user.username,
+            "exp": datetime.utcnow() + timedelta(seconds=current_app.config['JWT_EXPIRES_IN'])
+        }
+        access_token = generate_jwt_token(
+            token_payload, current_app.config["JWT_ALGORITHM"],
+            current_app.config["JWT_SECRET_KEY"])
+        print(access_token)
         db.session.add(user)
         db.session.commit()
-        return jsonify({"message": "User registered successfully"}), 201
+        return jsonify({"message": "User registered successfully",
+                        "access-token": str(access_token)}), 201
 
     except ValidationError as err:
         return jsonify({"errors": err.messages}), 400
