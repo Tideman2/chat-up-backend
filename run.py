@@ -1,5 +1,5 @@
 from myapp.app import create_app, db
-from user.user_route import auth_bp
+from user.auth_route import auth_bp
 
 app = create_app()
 
