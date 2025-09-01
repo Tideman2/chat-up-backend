@@ -1,10 +1,13 @@
 import os
+from flask_migrate import Migrate
 from flask import Flask
 from dotenv import load_dotenv
 from flask_cors import CORS
 from extension import db
 
+
 cors = CORS()
+migrate = Migrate()
 
 
 def create_app() -> Flask:
@@ -38,5 +41,6 @@ def create_app() -> Flask:
     # Initialize extensions
     db.init_app(app)
     cors.init_app(app)
+    migrate.init_app(app, db)
 
     return app

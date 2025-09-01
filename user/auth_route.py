@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
-from models.user_model import User
 from modules.schemas.users_schema import LoginSchema, SignUpSchema
 from services.user_service import UserService, UserServiceError
 

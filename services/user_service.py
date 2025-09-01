@@ -10,6 +10,12 @@ class UserServiceError(Exception):
 
 
 class UserService:
+    """
+    A class to handle user create and validation logics
+    errors are raised from these methods that are exempted in auth_route.py
+
+    """
+
     @staticmethod
     def create_user(data):
         username = data.get("name")

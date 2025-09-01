@@ -1,4 +1,3 @@
-from flask import Flask, request, jsonify
 from marshmallow import Schema, fields
 from marshmallow.validate import Email
 
