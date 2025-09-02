@@ -4,6 +4,7 @@ from flask import Flask
 from dotenv import load_dotenv
 from flask_cors import CORS
 from extension import db
+from models.message_model import Message, RoomMember, Room
 
 
 cors = CORS()

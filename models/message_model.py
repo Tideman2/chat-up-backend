@@ -4,29 +4,54 @@ from extension import db
 
 class Message(db.Model):
     """
-    A class model for user messages and
-    it's also a many to one relationship with the User table
+    # Purpose: Stores chat messages.
+    # Expected use: Can store messages for direct (1-to-1) or group chats.
+    # If `receiver_id` is filled, it's a private message.
+    # If `group_id` is filled, it's a group message.
 
     """
-
+    __tablename__ = 'messages'
     id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    room_id = db.Column(db.Integer, db.ForeignKey('chat_room.id'))
-    content = db.Column(db.String(500), nullable=False)
-    timestamp = db.Column(
-        db.DateTime, default=datetime.now(datetime.timezone.utc))
-    is_read = db.Column(db.Boolean, default=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+    sender_id = db.Column(
+        db.Integer, db.ForeignKey('users.id'), nullable=False)
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'), nullable=False)
 
-    sender = db.relationship('User', foreign_keys=[sender_id])
+    room = db.relationship('Room', back_populates='messages')
 
 
-class ChatRoom(db.Model):
+class Room(db.Model):
+    """
+    Purpose: Represents a chat group.
+    Expected use: Store info about chat groups and link to messages and members.
+
+    """
+    __tablename__ = 'rooms'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))  # Only for groups
+    name = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     is_group = db.Column(db.Boolean, default=False)
 
+    members = db.relationship('RoomMember', back_populates='room', lazy=True)
+    messages = db.relationship('Message', back_populates='room', lazy=True)
 
-class ChatRoomUser(db.Model):
+
+class RoomMember(db.Model):
+    """
+    Purpose: Handles the many-to-many relationship between users and groups.
+    Expected use: Store which users belong to which groups.
+
+    """
+    __tablename__ = 'room_memberships'
     id = db.Column(db.Integer, primary_key=True)
-    room_id = db.Column(db.Integer, db.ForeignKey('chat_room.id'))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'), nullable=False)
+    joined_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    user = db.relationship('User', back_populates='room_memberships')
+    room = db.relationship('Room', back_populates='members')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'room_id', name='unique_membership'),
+    )
