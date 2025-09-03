@@ -21,18 +21,23 @@ class UserService:
         username = data.get("name")
         email = data.get("email")
         password = data.get("password")
-        print(data)
-
+        print(data, "daraa")
         if not username or not password or not email:
             raise UserServiceError(("Missing fields"), 400)
         if User.query.filter_by(username=username).first():
             raise UserServiceError(("Username already exist"), 401)
 
-        user = User(username=username)
+        user = User(username=username, email=email)
         user.set_password(password)
-
         db.session.add(user)
-        db.session.commit()
+        try:
+            print("before commit")
+            db.session.commit()
+            print("after commit")
+        except Exception as e:
+            db.session.rollback()
+            print("commit failed:", e)
+            raise
 
         token_payload = {
             "sub": str(user.id),
@@ -42,18 +47,19 @@ class UserService:
         access_token = generate_jwt_token(
             token_payload, current_app.config["JWT_ALGORITHM"],
             current_app.config["JWT_SECRET_KEY"])
+        print(access_token)
         return access_token
 
     @staticmethod
     def validate_user(data):
         username = data.get("username")
         password = data.get("password")
-
+        print("i got here")
         user = User.query.filter_by(username=username).first()
 
         if not user:
             raise UserServiceError(("Username does not exist"), 401)
-
+        print("what about here?")
         # user = User(username=username)
         print(f"DEBUG: user.password_hash = {user}")
         if not user.check_password(password=password):

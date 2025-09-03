@@ -7,6 +7,7 @@ from flask_cors import CORS
 from extension import db
 from models.user_model import User
 from models.message_model import Message, RoomMember, Room
+from routes.auth_route import AuthNamespace
 
 
 cors = CORS()
@@ -22,6 +23,7 @@ def create_app() -> Flask:
     - Database (SQLAlchemy)
     - CORS
     - JWT settings
+    - Registration of name_space
 
     Returns:
         Flask: The configured Flask application instance.
@@ -48,4 +50,6 @@ def create_app() -> Flask:
     migrate.init_app(app, db)
     socketio.init_app(app, cors_allowed_origins=["http://localhost:5173"])
 
+    # register name_space
+    socketio.on_namespace(AuthNamespace("/auth"))
     return app
