@@ -6,8 +6,7 @@ class Message(db.Model):
     """
     # Purpose: Stores chat messages.
     # Expected use: Can store messages for direct (1-to-1) or group chats.
-    # If `receiver_id` is filled, it's a private message.
-    # If `group_id` is filled, it's a group message.
+    # If `receiver_id` is filled, it's a private message otherwise it's a group message.
 
     """
     __tablename__ = 'messages'
@@ -16,7 +15,9 @@ class Message(db.Model):
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
     sender_id = db.Column(
         db.Integer, db.ForeignKey('users.id'), nullable=False)
-    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'), nullable=False)
+    receiver_id = db.Column(
+        db.Integer, db.ForeignKey('users.id'), nullable=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'), nullable=True)
 
     room = db.relationship('Room', back_populates='messages')
 
@@ -39,7 +40,7 @@ class Room(db.Model):
 
 class RoomMember(db.Model):
     """
-    Purpose: Handles the many-to-many relationship between users and groups.
+    Purpose: Handles the many-to-many relationship between users and rooms.
     Expected use: Store which users belong to which groups.
 
     """

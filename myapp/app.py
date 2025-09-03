@@ -1,6 +1,7 @@
 import os
 from flask_migrate import Migrate
 from flask import Flask
+from flask_socketio import SocketIO
 from dotenv import load_dotenv
 from flask_cors import CORS
 from extension import db
@@ -9,6 +10,7 @@ from models.message_model import Message, RoomMember, Room
 
 cors = CORS()
 migrate = Migrate()
+socketio = SocketIO()
 
 
 def create_app() -> Flask:
@@ -43,5 +45,6 @@ def create_app() -> Flask:
     db.init_app(app)
     cors.init_app(app)
     migrate.init_app(app, db)
+    socketio.init_app(app, cors_allowed_origins=["http://localhost:5173"])
 
     return app
