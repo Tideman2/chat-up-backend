@@ -5,6 +5,7 @@ from flask_socketio import SocketIO
 from dotenv import load_dotenv
 from flask_cors import CORS
 from extension import db
+from models.user_model import User
 from models.message_model import Message, RoomMember, Room
 
 
