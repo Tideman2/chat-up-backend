@@ -16,14 +16,15 @@ class AuthNamespace(Namespace):
         """
         try:
             schema = SignUpSchema()
-            data = schema.load(data)  # data comes directly from client event
-            access_token = UserService.create_user(data)
+            data = schema.load(data)
+            service_data = UserService.create_user(data)
+            access_token, user_identity = service_data
             response = {
                 "message": "User registered successfully",
+                "user-id": str(user_identity),
                 "access-token": str(access_token),
                 "status-code": 201
             }
-            print("here")
 
             emit("register_user_response", response)
 
@@ -39,15 +40,14 @@ class AuthNamespace(Namespace):
 
     def on_login_user(self, data):
         try:
-            print("i ran")
             schema = LoginSchema()
             data = schema.load(data)
-            access_token = UserService.validate_user(data)
-            print("i got here")
+            service_data = UserService.validate_user(data)
+            access_token, user_identity = service_data
             response = {"message": "User login successful",
                         "access-token": str(access_token),
+                        "user-info": user_identity,
                         "status-code": 201}
-            print("hererere")
             emit("login_user_response", response)
 
         except ValidationError as err:

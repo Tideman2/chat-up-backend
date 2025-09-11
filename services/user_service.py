@@ -31,12 +31,10 @@ class UserService:
         user.set_password(password)
         db.session.add(user)
         try:
-            print("before commit")
             db.session.commit()
-            print("after commit")
         except Exception as e:
             db.session.rollback()
-            print("commit failed:", e)
+            print("Db in userService commit failed:", e)
             raise
 
         token_payload = {
@@ -48,20 +46,18 @@ class UserService:
             token_payload, current_app.config["JWT_ALGORITHM"],
             current_app.config["JWT_SECRET_KEY"])
         print(access_token)
-        return access_token
+        data = [access_token, user.get_user_identity()]
+        return data
 
     @staticmethod
     def validate_user(data):
         username = data.get("username")
         password = data.get("password")
-        print("i got here")
         user = User.query.filter_by(username=username).first()
 
         if not user:
             raise UserServiceError(("Username does not exist"), 401)
-        print("what about here?")
-        # user = User(username=username)
-        print(f"DEBUG: user.password_hash = {user}")
+
         if not user.check_password(password=password):
             raise UserServiceError(("Password is wrong"), 401)
 
@@ -73,4 +69,6 @@ class UserService:
         access_token = generate_jwt_token(
             token_payload, current_app.config["JWT_ALGORITHM"],
             current_app.config["JWT_SECRET_KEY"])
-        return access_token
+
+        data = [access_token, user.get_user_identity()]
+        return data
