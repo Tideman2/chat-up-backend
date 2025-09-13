@@ -69,6 +69,6 @@ class UserService:
         access_token = generate_jwt_token(
             token_payload, current_app.config["JWT_ALGORITHM"],
             current_app.config["JWT_SECRET_KEY"])
-
+        print(access_token)
         data = [access_token, user.get_user_identity()]
         return data

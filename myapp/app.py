@@ -8,6 +8,8 @@ from extension import db
 from models.user_model import User
 from models.message_model import Message, RoomMember, Room
 from routes.auth_route import AuthNamespace
+from Name_Space.message_name_space import MessageNamespace
+from routes.user_route import user_bp
 
 
 cors = CORS()
@@ -52,4 +54,5 @@ def create_app() -> Flask:
 
     # register name_space
     socketio.on_namespace(AuthNamespace("/auth"))
+    socketio.on_namespace(MessageNamespace("/message"))
     return app
