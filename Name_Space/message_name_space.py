@@ -3,7 +3,7 @@ from datetime import datetime
 from flask_socketio import Namespace, emit, join_room, leave_room
 from flask import request
 from extension import db
-from models.message_model import Message
+from models.message_model import Message, Room, RoomMember
 from models.user_model import User
 
 
@@ -17,15 +17,49 @@ class MessageNamespace(Namespace):
         """Handle client disconnection"""
         print(f"Client {request.sid} disconnected from Message namespace")
 
-    def on_join_room(self, data):
-        """Join a chat room"""
-        room_id = data.get('room_id')
-        user_id = data.get('user_id')
+    def on_entry_to_private_dm(self, data):
+        """
+        Check if there is a room with only both users as members
+        if it exists get the messages in the room and return the messsages
+        if it does not exist create a room and membership for both users
+        room name should be concanation of both users id
 
-        if room_id and user_id:
-            join_room(str(room_id))
-            emit('room_joined', {'room_id': room_id, 'user_id': user_id})
-            print(f"User {user_id} joined room {room_id}")
+        """
+        sender_id = data.get('userId')
+        receiver_id = data.get('receiverId')
+
+        room = (
+            Room.query
+            .join(RoomMember)
+            .filter(Room.is_group.is_(False))
+            .group_by(Room.id)
+            .having(func.count(RoomMember.user_id) == 2)
+            .filter(Room.members.any(RoomMember.user_id == sender_id))
+            .filter(Room.members.any(RoomMember.user_id == receiver_id))
+            .first()
+        )
+
+        if room:  # access all messages of that room
+            for msg in room.messages:
+                print(msg.content, msg.timestamp)
+        else:
+            # create room
+            # create room_membership for both users
+            room_name = f"{sender_id}_{receiver_id}"
+            room = Room(name=room_name, is_group=False)
+            db.session.add(room)
+            db.session.flush()
+
+            # Add memberships
+            room.members.append(RoomMember(user_id=sender_id))
+            room.members.append(RoomMember(user_id=receiver_id))
+
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print("Db in userService commit failed:", e)
+                raise
 
     def on_leave_room(self, data):
         """Leave a chat room"""

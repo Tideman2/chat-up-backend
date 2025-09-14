@@ -31,7 +31,7 @@ def get_new_token():
     access_token = generate_jwt_token(
         token_payload, current_app.config["JWT_ALGORITHM"],
         current_app.config["JWT_SECRET_KEY"])
-
+    print(access_token, "Token from get new token")
     return jsonify({'access-token': access_token}, 200)
 
 
