@@ -13,7 +13,7 @@ def get_users():
         print("Headers:", request.headers)
         all_users = User.query.all()
         users = [user.get_user_identity() for user in all_users]
-        print("I raannnn")
+
         return jsonify(users), 200
 
     except jwt.ExpiredSignatureError:

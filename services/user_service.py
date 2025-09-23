@@ -51,11 +51,13 @@ class UserService:
 
     @staticmethod
     def validate_user(data):
+        print("What about here?")
         username = data.get("username")
         password = data.get("password")
         user = User.query.filter_by(username=username).first()
 
         if not user:
+
             raise UserServiceError(("Username does not exist"), 401)
 
         if not user.check_password(password=password):

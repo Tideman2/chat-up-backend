@@ -7,7 +7,7 @@ from flask_cors import CORS
 from extension import db
 from models.user_model import User
 from models.message_model import Message, RoomMember, Room
-from routes.auth_route import AuthNamespace
+# from routes.auth_route import AuthNamespace
 from Name_Space.message_name_space import MessageNamespace
 from routes.user_route import user_bp
 
@@ -50,9 +50,10 @@ def create_app() -> Flask:
     db.init_app(app)
     cors.init_app(app)
     migrate.init_app(app, db)
-    socketio.init_app(app, cors_allowed_origins=["http://localhost:5173"])
+    socketio.init_app(app, cors_allowed_origins=["http://localhost:5173",
+                                                 "http://localhost:5174"])
 
     # register name_space
-    socketio.on_namespace(AuthNamespace("/auth"))
+    # socketio.on_namespace(AuthNamespace("/auth"))
     socketio.on_namespace(MessageNamespace("/message"))
     return app

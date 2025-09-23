@@ -1,9 +1,7 @@
 from myapp.app import create_app, db
-# from routes.auth_route import auth_bp
-# from routes.user_route import user_bp
-from routes.message_route import message_bp
-from routes.user_route import user_bp
 from routes.auth_route import auth_bp
+from routes.user_route import user_bp
+from routes.message_route import message_bp
 from myapp.app import socketio
 
 app = create_app()

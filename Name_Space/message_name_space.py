@@ -1,5 +1,6 @@
 # sockets/message_namespace.py
 from datetime import datetime
+from sqlalchemy import func
 from flask_socketio import Namespace, emit, join_room, leave_room
 from flask import request
 from extension import db
@@ -33,7 +34,7 @@ class MessageNamespace(Namespace):
             .join(RoomMember)
             .filter(Room.is_group.is_(False))
             .group_by(Room.id)
-            .having(func.count(RoomMember.user_id) == 2)
+            .having(db.func.count(RoomMember.user_id) == 2)
             .filter(Room.members.any(RoomMember.user_id == sender_id))
             .filter(Room.members.any(RoomMember.user_id == receiver_id))
             .first()
@@ -44,8 +45,13 @@ class MessageNamespace(Namespace):
                 print(msg.content, msg.timestamp)
         else:
             # create room
-            # create room_membership for both users
-            room_name = f"{sender_id}_{receiver_id}"
+            # create room_memberships for both users
+            # Join flask_socketIo room
+            lower_id = min(int(sender_id), int(receiver_id))
+            higher_id = max(int(sender_id), int(receiver_id))
+            room_name = f"{lower_id}_{higher_id}"
+
+            join_room(room_name)
             room = Room(name=room_name, is_group=False)
             db.session.add(room)
             db.session.flush()
@@ -53,6 +59,13 @@ class MessageNamespace(Namespace):
             # Add memberships
             room.members.append(RoomMember(user_id=sender_id))
             room.members.append(RoomMember(user_id=receiver_id))
+            response = {
+                "senderId": sender_id,
+                "receiverId": receiver_id,
+                "roomName": room_name
+            }
+
+            emit("entry_to_dm_response", response)
 
             try:
                 db.session.commit()
@@ -61,29 +74,13 @@ class MessageNamespace(Namespace):
                 print("Db in userService commit failed:", e)
                 raise
 
-    def on_leave_room(self, data):
-        """Leave a chat room"""
-        room_id = data.get('room_id')
-        user_id = data.get('user_id')
-
-        if room_id and user_id:
-            leave_room(str(room_id))
-            emit('room_left', {'room_id': room_id, 'user_id': user_id})
-            print(f"User {user_id} left room {room_id}")
-
-    def on_join_user_room(self, data):
-        """Join user's personal room for private messages"""
-        user_id = data.get('user_id')
-        if user_id:
-            join_room(str(user_id))
-            emit('user_room_joined', {'user_id': user_id})
-
     def on_private_message(self, data):
         """Handle private messages between users"""
         try:
             content = data.get('content')
             sender_id = data.get('sender_id')
             receiver_id = data.get('receiver_id')
+            room_id = data.get('room_id')
 
             if not all([content, sender_id, receiver_id]):
                 emit('error', {'message': 'Missing required fields'})
