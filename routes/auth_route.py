@@ -19,12 +19,12 @@ def get_new_token():
     user_id = data.get("userId")
     print("I ran, in get new token end-point")
 
-    if not User.query.filter_by(username=username).first():
-        return jsonify({"error": "User not found"}), 404
+    # if not User.query.filter_by(username=username).first():
+    #     return jsonify({"error": "User not found"}), 404
 
     token_payload = {
-        "sub": str(user_id),
-        "username": username,
+        # "sub": str(user_id),
+        # "username": username,
         "exp": datetime.utcnow() + timedelta(seconds=current_app.config["JWT_EXPIRES_IN"]),
     }
 
