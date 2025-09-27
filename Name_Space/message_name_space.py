@@ -18,6 +18,11 @@ class MessageNamespace(Namespace):
         """Handle client disconnection"""
         print(f"Client {request.sid} disconnected from Message namespace")
 
+    def on_echo_test(self, data):
+        print("Echo test received", data)
+        emit("echo_response", {"echo": data,
+             "timestamp": datetime.now().isoformat()})
+
     def on_entry_to_private_dm(self, data):
         """
         Check if there is a room with only both users as members
@@ -102,88 +107,6 @@ class MessageNamespace(Namespace):
                 print("Db commit failed:", e)
                 emit('error', {'message': f'Database error: {str(e)}'})
                 raise
-
-    # def on_entry_to_private_dm(self, data):
-    #     """
-    #     Check if there is a room with only both users as members
-    #     if it exists get the messages in the room and return the messsages
-    #     if it does not exist create a room and membership for both users
-    #     room name should be concanation of both users id
-
-    #     """
-    #     sender_id = data.get('userId')
-    #     receiver_id = data.get('receiverId')
-
-    #     room = (
-    #         Room.query
-    #         .join(RoomMember)
-    #         .filter(Room.is_group.is_(False))
-    #         .group_by(Room.id)
-    #         .having(db.func.count(RoomMember.user_id) == 2)
-    #         .filter(Room.members.any(RoomMember.user_id == sender_id))
-    #         .filter(Room.members.any(RoomMember.user_id == receiver_id))
-    #         .first()
-    #     )
-
-    #     if room:  # access all messages of that room
-    #         # Join the existing room
-    #         join_room(room.name)
-    #         # Fetch messages in the room
-    #         messages_data = []
-    #         for msg in room.messages:
-    #             sender = User.query.get(msg.sender_id)  # Get sender info
-    #             messages_data.append({
-    #                 'id': msg.id,
-    #                 'content': msg.content,
-    #                 'timestamp': msg.timestamp.isoformat(),
-    #                 'sender_id': msg.sender_id,
-    #                 'sender_username': sender.username,
-    #                 'receiver_id': msg.receiver_id,
-    #                 'type': 'private'
-    #             })
-
-    #         response = {
-    #             "senderId": sender_id,
-    #             "receiverId": receiver_id,
-    #             "roomName": room.name,
-    #             "roomId": room.id,
-    #             "existingRoom": True  # Flag to indicate it's existing
-    #         }
-    #         emit("entry_to_dm_response", response)
-
-    #         # Also join the existing room
-    #         join_room(room.name)
-    #     else:
-    #         # create room
-    #         # create room_memberships for both users
-    #         # Join flask_socketIo room
-    #         lower_id = min(int(sender_id), int(receiver_id))
-    #         higher_id = max(int(sender_id), int(receiver_id))
-    #         room_name = f"{lower_id}_{higher_id}"
-
-    #         join_room(room_name)
-    #         room = Room(name=room_name, is_group=False)
-    #         db.session.add(room)
-    #         db.session.flush()
-
-    #         # Add memberships
-    #         room.members.append(RoomMember(user_id=sender_id))
-    #         room.members.append(RoomMember(user_id=receiver_id))
-    #         response = {
-    #             "senderId": sender_id,
-    #             "receiverId": receiver_id,
-    #             "roomName": room_name,
-    #             "messages": [],
-    #         }
-
-    #         emit("entry_to_dm_response", response)
-
-    #         try:
-    #             db.session.commit()
-    #         except Exception as e:
-    #             db.session.rollback()
-    #             print("Db in userService commit failed:", e)
-    #             raise
 
     def on_private_message(self, data):
         """Handle private messages between users"""

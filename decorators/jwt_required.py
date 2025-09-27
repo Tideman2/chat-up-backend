@@ -26,7 +26,7 @@ def jwt_required(f):
                 current_app.config["JWT_ALGORITHM"],
                 current_app.config["JWT_SECRET_KEY"]
             )
-            print(f"Decoded successfully: {decoded}")
+            print(f"Decoded successfully")
             request.user = decoded
 
         except jwt.ExpiredSignatureError as e:
