@@ -1,6 +1,4 @@
-# sockets/message_namespace.py
-from datetime import datetime
-from sqlalchemy import func
+from datetime import datetime, timezone
 from flask_socketio import Namespace, emit, join_room, leave_room
 from flask import request
 from extension import db
@@ -9,6 +7,41 @@ from models.user_model import User
 
 
 class MessageNamespace(Namespace):
+
+    def _get_or_create_private_room(self, user1_id, user2_id):
+        """Helper method to find or create a private room for two users"""
+        # Find existing room with exactly these two members
+        room = (
+            Room.query
+            .join(RoomMember)
+            .filter(Room.is_group.is_(False))
+            .group_by(Room.id)
+            .having(db.func.count(RoomMember.user_id) == 2)
+            .filter(Room.members.any(RoomMember.user_id == user1_id))
+            .filter(Room.members.any(RoomMember.user_id == user2_id))
+            .first()
+        )
+
+        if room:
+            print(f"Found existing private room: {room.name}")
+            return room
+        else:
+            # Create new room
+            lower_id = min(int(user1_id), int(user2_id))
+            higher_id = max(int(user1_id), int(user2_id))
+            room_name = f"{lower_id}_{higher_id}"
+
+            room = Room(name=room_name, is_group=False)
+            db.session.add(room)
+            db.session.flush()  # Get room ID without committing
+
+            # Add both users as members
+            room.members.append(RoomMember(user_id=user1_id))
+            room.members.append(RoomMember(user_id=user2_id))
+            db.session.commit()
+            print(f"Created new private room: {room_name}")
+            return room
+
     def on_connect(self):
         """Handle client connection"""
         print(f"Client {request.sid} connected to Message namespace")
@@ -24,43 +57,40 @@ class MessageNamespace(Namespace):
              "timestamp": datetime.now().isoformat()})
 
     def on_entry_to_private_dm(self, data):
-        """
-        Check if there is a room with only both users as members
-        if it exists get the messages in the room and return the messsages
-        if it does not exist create a room and membership for both users
-        room name should be concanation of both users id
-        """
+        """User wants to enter a private DM conversation"""
+        try:
+            sender_id = data.get('userId')
+            receiver_id = data.get('receiverId')
+            print("Data received in entry to private dm:", data)
 
-        sender_id = data.get('userId')
-        receiver_id = data.get('receiverId')
-        print("Data received in entry to private dm:", data)
+            if not all([sender_id, receiver_id]):
+                emit('error', {'message': 'Missing user IDs'})
+                return
 
-        room = (
-            Room.query
-            .join(RoomMember)
-            .filter(Room.is_group.is_(False))
-            .group_by(Room.id)
-            .having(db.func.count(RoomMember.user_id) == 2)
-            .filter(Room.members.any(RoomMember.user_id == sender_id))
-            .filter(Room.members.any(RoomMember.user_id == receiver_id))
-            .first()
-        )
+            # Get or create the private room
+            room = self._get_or_create_private_room(sender_id, receiver_id)
 
-        if room:
-            # Join the existing room
+            # Join the room
             join_room(room.name)
+            print(f"User {sender_id} joined room {room.name}")
 
-           # get messages
+            # Get all messages in this room
+            messages = Message.query.filter_by(room_id=room.id)\
+                .order_by(Message.timestamp.asc())\
+                .all()
+
+            # Prepare messages data
             messages_data = []
-            for msg in room.messages:
+            for msg in messages:
                 sender = User.query.get(msg.sender_id)
                 messages_data.append({
                     'id': msg.id,
                     'content': msg.content,
                     'timestamp': msg.timestamp.isoformat(),
                     'sender_id': msg.sender_id,
-                    'sender_username': sender.username,
+                    'sender_username': sender.username if sender else 'Unknown',
                     'receiver_id': msg.receiver_id,
+                    'room_id': msg.room_id,
                     'type': 'private'
                 })
 
@@ -69,63 +99,40 @@ class MessageNamespace(Namespace):
                 "receiverId": receiver_id,
                 "roomName": room.name,
                 "roomId": room.id,
-                "existingRoom": True,  # Flag to indicate existing room
+                "existingRoom": True,
                 "messages": messages_data
             }
-            emit("entry_to_dm_response", response)
-
-        else:
-            # create new room
-            lower_id = min(int(sender_id), int(receiver_id))
-            higher_id = max(int(sender_id), int(receiver_id))
-            room_name = f"{lower_id}_{higher_id}"
-
-            join_room(room_name)
-            room = Room(name=room_name, is_group=False)
-            db.session.add(room)
-            db.session.flush()
-
-            # Add memberships
-            room.members.append(RoomMember(user_id=sender_id))
-            room.members.append(RoomMember(user_id=receiver_id))
-
-            response = {
-                "senderId": sender_id,
-                "receiverId": receiver_id,
-                "roomName": room_name,
-                "roomId": room.id,
-                "existingRoom": False,  # Flag to indicate new room
-                "messages": []
-            }
 
             emit("entry_to_dm_response", response)
+            print(f"Sent {len(messages_data)} messages to user {sender_id}")
 
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                print("Db commit failed:", e)
-                emit('error', {'message': f'Database error: {str(e)}'})
-                raise
+        except Exception as e:
+            print(f"Error in entry_to_private_dm: {str(e)}")
+            emit('error', {'message': f'Failed to enter DM: {str(e)}'})
 
     def on_private_message(self, data):
-        """Handle private messages between users"""
+        """Handle private messages between users using room-based approach"""
         try:
             content = data.get('content')
             sender_id = data.get('sender_id')
             receiver_id = data.get('receiver_id')
-            room_id = data.get('room_id')
 
             if not all([content, sender_id, receiver_id]):
                 emit('error', {'message': 'Missing required fields'})
                 return
 
-            # Create new message
+            print("Private message data received:", data)
+
+            # Get or create the private room
+            room = self._get_or_create_private_room(sender_id, receiver_id)
+
+            # Create new message associated with the room
             message = Message(
                 content=content,
                 sender_id=sender_id,
                 receiver_id=receiver_id,
-                timestamp=datetime.now(datetime.timezone.utc)
+                room_id=room.id,  # Critical: Associate with room
+                timestamp=datetime.now(timezone.utc)
             )
 
             db.session.add(message)
@@ -140,18 +147,18 @@ class MessageNamespace(Namespace):
                 'content': message.content,
                 'timestamp': message.timestamp.isoformat(),
                 'sender_id': message.sender_id,
+                'sender_username': sender.username if sender else 'Unknown',
                 'receiver_id': message.receiver_id,
-                'sender_username': sender.username,
+                'room_id': message.room_id,
                 'type': 'private'
             }
 
-            # Emit to sender
-            emit('new_message', message_data, room=request.sid)
-
-            # Emit to receiver (using user_id as room)
-            emit('new_message', message_data, room=str(receiver_id))
+            # Emit to everyone in the room (both users)
+            emit('new_message', message_data, room=room.name)
+            print(f"Message sent to room {room.name}")
 
         except Exception as e:
+            print(f"Error in private_message: {str(e)}")
             emit('error', {'message': f'Failed to send message: {str(e)}'})
             db.session.rollback()
 
@@ -163,14 +170,19 @@ class MessageNamespace(Namespace):
             limit = data.get('limit', 50)
             offset = data.get('offset', 0)
 
-            messages = Message.query.filter(
-                ((Message.sender_id == user1_id) & (Message.receiver_id == user2_id)) |
-                ((Message.sender_id == user2_id) &
-                 (Message.receiver_id == user1_id))
-            ).order_by(Message.timestamp.asc())\
-             .offset(offset)\
-             .limit(limit)\
-             .all()
+            if not all([user1_id, user2_id]):
+                emit('error', {'message': 'Missing user IDs'})
+                return
+
+            # Get the private room
+            room = self._get_or_create_private_room(user1_id, user2_id)
+
+            # Get messages from this specific room
+            messages = Message.query.filter_by(room_id=room.id)\
+                .order_by(Message.timestamp.asc())\
+                .offset(offset)\
+                .limit(limit)\
+                .all()
 
             messages_data = []
             for message in messages:
@@ -180,13 +192,16 @@ class MessageNamespace(Namespace):
                     'content': message.content,
                     'timestamp': message.timestamp.isoformat(),
                     'sender_id': message.sender_id,
-                    'sender_username': sender.username,
+                    'sender_username': sender.username if sender else 'Unknown',
                     'receiver_id': message.receiver_id,
+                    'room_id': message.room_id,
                     'type': 'private'
                 })
 
-            emit('private_messages', {'messages': messages_data})
+            emit('private_messages', {
+                 'messages': messages_data, 'room_id': room.id})
 
         except Exception as e:
+            print(f"Error in get_private_messages: {str(e)}")
             emit(
                 'error', {'message': f'Failed to get private messages: {str(e)}'})
