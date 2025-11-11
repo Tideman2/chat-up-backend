@@ -23,8 +23,8 @@ def get_new_token():
     #     return jsonify({"error": "User not found"}), 404
 
     token_payload = {
-        # "sub": str(user_id),
-        # "username": username,
+        "sub": str(user_id),
+        "username": username,
         "exp": datetime.utcnow() + timedelta(seconds=current_app.config["JWT_EXPIRES_IN"]),
     }
 

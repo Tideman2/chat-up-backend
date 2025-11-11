@@ -61,7 +61,7 @@ class MessageNamespace(Namespace):
         try:
             sender_id = data.get('userId')
             receiver_id = data.get('receiverId')
-            print("Data received in entry to private dm:", data)
+            print("Data received in entry to private dm:")
 
             if not all([sender_id, receiver_id]):
                 emit('error', {'message': 'Missing user IDs'})
@@ -72,7 +72,6 @@ class MessageNamespace(Namespace):
 
             # Join the room
             join_room(room.name)
-            print(f"User {sender_id} joined room {room.name}")
 
             # Get all messages in this room
             messages = Message.query.filter_by(room_id=room.id)\
@@ -104,7 +103,6 @@ class MessageNamespace(Namespace):
             }
 
             emit("entry_to_dm_response", response)
-            print(f"Sent {len(messages_data)} messages to user {sender_id}")
 
         except Exception as e:
             print(f"Error in entry_to_private_dm: {str(e)}")
@@ -120,8 +118,6 @@ class MessageNamespace(Namespace):
             if not all([content, sender_id, receiver_id]):
                 emit('error', {'message': 'Missing required fields'})
                 return
-
-            print("Private message data received:", data)
 
             # Get or create the private room
             room = self._get_or_create_private_room(sender_id, receiver_id)
@@ -155,7 +151,6 @@ class MessageNamespace(Namespace):
 
             # Emit to everyone in the room (both users)
             emit('new_message', message_data, room=room.name)
-            print(f"Message sent to room {room.name}")
 
         except Exception as e:
             print(f"Error in private_message: {str(e)}")

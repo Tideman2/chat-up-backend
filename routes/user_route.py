@@ -10,7 +10,6 @@ user_bp = Blueprint('user', __name__, url_prefix='/user')
 @jwt_required
 def get_users():
     try:
-        print("Headers:", request.headers)
         all_users = User.query.all()
         users = [user.get_user_identity() for user in all_users]
 

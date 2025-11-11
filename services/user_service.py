@@ -21,7 +21,6 @@ class UserService:
         username = data.get("name")
         email = data.get("email")
         password = data.get("password")
-        print(data, "daraa")
         if not username or not password or not email:
             raise UserServiceError(("Missing fields"), 400)
         if User.query.filter_by(username=username).first():
@@ -45,7 +44,6 @@ class UserService:
         access_token = generate_jwt_token(
             token_payload, current_app.config["JWT_ALGORITHM"],
             current_app.config["JWT_SECRET_KEY"])
-        print(access_token)
         data = [access_token, user.get_user_identity()]
         return data
 
@@ -71,6 +69,5 @@ class UserService:
         access_token = generate_jwt_token(
             token_payload, current_app.config["JWT_ALGORITHM"],
             current_app.config["JWT_SECRET_KEY"])
-        print(access_token)
         data = [access_token, user.get_user_identity()]
         return data
